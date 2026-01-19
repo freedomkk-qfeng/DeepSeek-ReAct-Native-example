@@ -21,7 +21,11 @@ DeepSeek-ReAct-Native-example/
 ├── deepseek_agent.py   # Core Agent Class (Handles reasoning flow & tool loops)
 ├── demo_math.py        # Demo 1: Math Calculator (Step-by-step arithmetic reasoning)
 ├── demo_adventure.py   # Demo 2: Text Adventure Game (Spatial reasoning & state tracking)
-└── demo_web_search.py  # Demo 3: Web Search Agent (RAG, Time awareness & Calculation)
+├── demo_web_search.py  # Demo 3: Web Search Agent (RAG, Time awareness & Calculation)
+├── demo_word_web.py    # Demo 4: Word Smart Fill (Document manipulation & form recognition)
+├── word_engine.py      # Word document operation engine
+├── templates/          # Web interface templates
+└── 工作简历空表.docx    # Sample Word form template
 ```
 
 ## 🚀 Quick Start
@@ -29,7 +33,7 @@ DeepSeek-ReAct-Native-example/
 ### 1. Install Dependencies
 
 ```bash
-pip install openai requests beautifulsoup4
+pip install openai requests beautifulsoup4 python-docx flask flask-socketio
 ```
 
 ### 2. Configure API
@@ -210,6 +214,44 @@ Okay. Now give the final answer.
 According to the official history page, the Department was founded on May 7, 1979.
 Therefore, next year (2026) will be the 47th anniversary.
 ```
+</details>
+
+**Demo 4: Word Smart Fill**
+Upload a Word form document via web interface, AI automatically recognizes table structure and fills in information, with real-time preview and download support.
+```bash
+python demo_word_web.py
+```
+Then visit http://localhost:5000
+
+<details>
+<summary>Click to view features</summary>
+
+**Features:**
+- 📤 **Upload Document**: Drag & drop or click to upload .docx files
+- 👁️ **Real-time Preview**: Auto-refresh document preview after each AI modification
+- 🤖 **Smart Fill**: Auto-detect label-value pairs in tables, supports merged cells
+- 📥 **Download Result**: One-click download after completion
+
+**Tool Set:**
+- `list_tables` - List all tables in the document
+- `analyze_table` - Deep analyze table structure, identify fillable fields
+- `fill_by_label` - Smart locate and fill by label text (recommended)
+- `fill_multiple_by_labels` - Batch fill multiple fields
+- `fill_cell` - Fill cell by row/column coordinates
+
+**Example Task:**
+```
+Fill in the resume form with the following information:
+Name: John Smith
+University: Stanford University
+Major: Computer Science
+Degree: Master
+Graduation: 2026
+Phone: 650-123-4567
+Email: john.smith@example.com
+```
+
+The AI will automatically analyze the table structure, find labels like "Name", "University", etc., and fill in the corresponding values.
 </details>
 
 ## 🧠 Core Principle
