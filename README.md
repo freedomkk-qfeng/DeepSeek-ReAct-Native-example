@@ -21,7 +21,11 @@ DeepSeek-ReAct-Native-example/
 ├── deepseek_agent.py   # 核心 Agent 类 (处理思考流、工具调用循环)
 ├── demo_math.py        # 示例 1: 数学计算器 (展示多步算术推理)
 ├── demo_adventure.py   # 示例 2: 文字冒险游戏 (展示空间推理与状态记忆)
-└── demo_web_search.py  # 示例 3: 网页调研 (展示网页抓取、时间感知与计算能力)
+├── demo_web_search.py  # 示例 3: 网页调研 (展示网页抓取、时间感知与计算能力)
+├── demo_word_web.py    # 示例 4: Word 智能填写 (展示文档操作与表单识别)
+├── word_engine.py      # Word 文档操作引擎
+├── templates/          # Web 界面模板
+└── 工作简历空表.docx    # 示例 Word 表格模板
 ```
 
 ## 🚀 快速开始
@@ -29,7 +33,7 @@ DeepSeek-ReAct-Native-example/
 ### 1. 安装依赖
 
 ```bash
-pip install openai requests beautifulsoup4
+pip install openai requests beautifulsoup4 python-docx flask flask-socketio
 ```
 
 ### 2. 配置 API
@@ -276,6 +280,44 @@ tm) [学院概况](https://cs.ecnu.edu.cn/xygk/list.htm) [学院简介](https://
 > 参考资料：华东师范大学计算机科学与技术学院《历史沿革》页面（https://cs.ecnu.edu.cn/lsyg/list.htm）中明确写道：“
 1979年5月7日，建立华东师范大学计算机科学系”。
 ```
+</details>
+
+**示例 4：Word 智能填写**
+通过 Web 界面上传 Word 表格文档，AI 自动识别表格结构并填写信息，支持实时预览和下载。
+```bash
+python demo_word_web.py
+```
+然后访问 http://localhost:5000
+
+<details>
+<summary>点击查看功能特点</summary>
+
+**功能特点：**
+- 📤 **上传文档**：支持拖拽或点击上传 .docx 文件
+- 👁️ **实时预览**：AI 每次修改后自动刷新文档预览
+- 🤖 **智能填写**：自动识别表格中的标签-值对，支持合并单元格
+- 📥 **下载结果**：填写完成后一键下载
+
+**工具集：**
+- `list_tables` - 列出文档中所有表格
+- `analyze_table` - 深度分析表格结构，识别可填写字段
+- `fill_by_label` - 根据标签文本智能定位并填写（推荐）
+- `fill_multiple_by_labels` - 批量填写多个字段
+- `fill_cell` - 按行列坐标填写单元格
+
+**示例任务：**
+```
+填写简历表格。信息如下：
+姓名：张三
+学校：华东师范大学
+专业：计算机科学与技术
+学历：硕士
+毕业时间：2026年
+电话：13812345678
+邮箱：zhangsan@example.com
+```
+
+AI 会自动分析表格结构，找到"姓名"、"学校"等标签，并在对应位置填写信息。
 </details>
 
 ## 🧠 核心原理

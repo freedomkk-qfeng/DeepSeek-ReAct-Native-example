@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word 智能填写系统</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: white;
+            font-size: 2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        h1 .icon { margin-right: 10px; }
+        
+        .subtitle {
+            color: rgba(255,255,255,0.9);
+            margin-top: 8px;
+            font-size: 0.95rem;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 15px 20px;
+            color: white;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-header.preview-header {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        
+        .card-body {
+            padding: 20px;
+        }
+        
+        /* 上传区域 */
+        .upload-zone {
+            border: 3px dashed #ddd;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #fafafa;
+        }
+        
+        .upload-zone:hover, .upload-zone.drag-over {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .upload-zone .icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+        
+        .upload-zone h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .upload-zone p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .file-info {
+            display: none;
+            padding: 15px;
+            background: linear-gradient(135deg, #a8e063 0%, #56ab2f 100%);
+            border-radius: 10px;
+            color: white;
+            margin-top: 15px;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .file-info.show {
+            display: flex;
+        }
+        
+        .file-info .filename {
+            flex: 1;
+            font-weight: 500;
+        }
+        
+        /* 任务输入区 */
+        .prompt-section {
+            margin-top: 20px;
+        }
+        
+        .prompt-section label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .prompt-textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+        
+        .prompt-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        /* 按钮组 */
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+        
+        .btn-success:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(56, 239, 125, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        /* 状态指示器 */
+        .status-bar {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+        
+        .status-bar.idle {
+            background: #e8f4f8;
+            color: #17a2b8;
+        }
+        
+        .status-bar.running {
+            background: #fff3cd;
+            color: #856404;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-bar.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-bar.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* 日志区域 */
+        .log-container {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #1a1a2e;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+        }
+        
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #2a2a4a;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .log-time {
+            color: #888;
+            min-width: 70px;
+        }
+        
+        .log-action {
+            color: #00d4ff;
+        }
+        
+        .log-detail {
+            color: #aaa;
+            flex: 1;
+            word-break: break-all;
+        }
+        
+        /* 预览区域 */
+        .preview-container {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            min-height: 600px;
+            max-height: 800px;
+            overflow: auto;
+            position: relative;
+        }
+        
+        .preview-content {
+            padding: 40px;
+            min-height: 500px;
+        }
+        
+        .preview-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            color: #aaa;
+        }
+        
+        .preview-placeholder .icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        /* Mammoth 生成的表格样式优化 */
+        .preview-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        
+        .preview-content table, 
+        .preview-content th, 
+        .preview-content td {
+            border: 1px solid #333;
+        }
+        
+        .preview-content th, 
+        .preview-content td {
+            padding: 10px 12px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        
+        .preview-content th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+        
+        .preview-content tr:nth-child(even) {
+            background: #fafafa;
+        }
+        
+        .preview-content p {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        
+        /* 刷新按钮 */
+        .refresh-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.05);
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        
+        .refresh-btn.spinning {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 思考过程展示 */
+        .thinking-box {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .thinking-box.show {
+            display: block;
+        }
+        
+        .thinking-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .thinking-content {
+            font-size: 0.85rem;
+            color: #555;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            h1 { font-size: 1.5rem; }
+            .card-body { padding: 15px; }
+            .preview-content { padding: 20px; }
+        }
+        
+        /* 工具调用高亮 */
+        .tool-call-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin: 3px;
+        }
+        
+        /* AI 响应区 */
+        .ai-response {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 0 10px 10px 0;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .ai-response.show {
+            display: block;
+        }
+        
+        .ai-response-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .ai-response-content {
+            color: #555;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><span class="icon">📄</span>Word 智能填写系统</h1>
+            <p class="subtitle">上传 Word 表格 → AI 自动识别填写 → 下载完成的文档</p>
+        </header>
+        
+        <div class="main-grid">
+            <!-- 左侧：控制面板 -->
+            <div class="card">
+                <div class="card-header">
+                    <span>🎛️</span>
+                    <span>控制面板</span>
+                </div>
+                <div class="card-body">
+                    <!-- 上传区域 -->
+                    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                        <div class="icon">📤</div>
+                        <h3>点击或拖拽上传 Word 文档</h3>
+                        <p>支持 .docx 格式，最大 16MB</p>
+                        <input type="file" id="fileInput" accept=".docx">
+                    </div>
+                    
+                    <div class="file-info" id="fileInfo">
+                        <span>📎</span>
+                        <span class="filename" id="fileName"></span>
+                        <button class="btn btn-secondary" onclick="resetDocument()" style="padding: 6px 12px; font-size: 0.85rem;">重置</button>
+                    </div>
+                    
+                    <!-- 任务输入 -->
+                    <div class="prompt-section">
+                        <label for="promptInput">📝 任务描述</label>
+                        <textarea id="promptInput" class="prompt-textarea" placeholder="例如：填写简历表格，姓名：张三，学校：华东师范大学，专业：计算机科学..."></textarea>
+                    </div>
+                    
+                    <!-- 按钮组 -->
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="startBtn" onclick="startAgent()" disabled>
+                            <span>🚀</span>
+                            <span>开始填写</span>
+                        </button>
+                        <button class="btn btn-danger" id="stopBtn" onclick="stopAgent()" disabled>
+                            <span>⏹️</span>
+                            <span>停止</span>
+                        </button>
+                        <button class="btn btn-success" id="downloadBtn" onclick="downloadDocument()" disabled>
+                            <span>📥</span>
+                            <span>下载文档</span>
+                        </button>
+                    </div>
+                    
+                    <!-- 状态栏 -->
+                    <div class="status-bar idle" id="statusBar">
+                        <span>⏳</span>
+                        <span id="statusText">等待上传文档...</span>
+                    </div>
+                    
+                    <!-- 思考过程 -->
+                    <div class="thinking-box" id="thinkingBox">
+                        <div class="thinking-title">
+                            <span>🧠</span>
+                            <span>AI 思考过程</span>
+                        </div>
+                        <div class="thinking-content" id="thinkingContent"></div>
+                    </div>
+                    
+                    <!-- AI 响应 -->
+                    <div class="ai-response" id="aiResponse">
+                        <div class="ai-response-title">💬 AI 回复</div>
+                        <div class="ai-response-content" id="aiResponseContent"></div>
+                    </div>
+                    
+                    <!-- 操作日志 -->
+                    <div class="log-container" id="logContainer">
+                        <div class="log-entry">
+                            <span class="log-time">--:--:--</span>
+                            <span class="log-action">系统就绪</span>
+                            <span class="log-detail">等待上传文档</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧：预览面板 -->
+            <div class="card">
+                <div class="card-header preview-header">
+                    <span>👁️</span>
+                    <span>文档预览</span>
+                    <span style="flex:1"></span>
+                    <span style="font-size: 0.8rem; opacity: 0.8;">实时更新</span>
+                </div>
+                <div class="card-body" style="padding: 10px;">
+                    <div class="preview-container" id="previewContainer">
+                        <button class="refresh-btn" onclick="refreshPreview()" title="刷新预览">🔄</button>
+                        <div class="preview-content" id="previewContent">
+                            <div class="preview-placeholder">
+                                <div class="icon">📄</div>
+                                <p>上传文档后在此显示预览</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // WebSocket 连接
+        const socket = io();
+        let isDocumentUploaded = false;
+        
+        // 连接事件
+        socket.on('connect', () => {
+            console.log('已连接到服务器');
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('与服务器断开连接');
+            updateStatus('error', '连接断开，请刷新页面');
+        });
+        
+        // Agent 状态事件
+        socket.on('agent_status', (data) => {
+            updateStatus(data.status, data.message);
+            
+            if (data.status === 'completed') {
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('downloadBtn').disabled = false;
+                refreshPreview();
+            } else if (data.status === 'error') {
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        });
+        
+        // 思考过程
+        socket.on('agent_thinking', (data) => {
+            updateStatus('running', data.message);
+        });
+        
+        socket.on('agent_reasoning', (data) => {
+            const thinkingBox = document.getElementById('thinkingBox');
+            const thinkingContent = document.getElementById('thinkingContent');
+            thinkingBox.classList.add('show');
+            thinkingContent.textContent = data.content;
+        });
+        
+        // AI 响应
+        socket.on('agent_response', (data) => {
+            const aiResponse = document.getElementById('aiResponse');
+            const aiResponseContent = document.getElementById('aiResponseContent');
+            aiResponse.classList.add('show');
+            aiResponseContent.textContent = data.content;
+        });
+        
+        // 工具调用
+        socket.on('tool_call', (data) => {
+            addLog(`🔧 ${data.name}`, data.args);
+        });
+        
+        // 文档更新
+        socket.on('doc_updated', (data) => {
+            addLog(data.action, data.detail);
+            refreshPreview();
+        });
+        
+        // 错误
+        socket.on('agent_error', (data) => {
+            addLog('❌ 错误', data.message);
+            updateStatus('error', data.message);
+        });
+        
+        // 上传文件
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        
+        // 拖拽事件
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('drag-over');
+        });
+        
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('drag-over');
+        });
+        
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileUpload(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+        
+        async function handleFileUpload(file) {
+            if (!file.name.endsWith('.docx')) {
+                alert('请上传 .docx 格式的文件');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            updateStatus('running', '正在上传文件...');
+            
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    isDocumentUploaded = true;
+                    document.getElementById('fileInfo').classList.add('show');
+                    document.getElementById('fileName').textContent = result.filename;
+                    document.getElementById('startBtn').disabled = false;
+                    updateStatus('idle', '文档已上传，可以开始填写');
+                    addLog('📤 上传成功', result.filename);
+                    refreshPreview();
+                } else {
+                    updateStatus('error', result.message);
+                    addLog('❌ 上传失败', result.message);
+                }
+            } catch (error) {
+                updateStatus('error', '上传失败: ' + error.message);
+                addLog('❌ 上传失败', error.message);
+            }
+        }
+        
+        // 开始 Agent
+        async function startAgent() {
+            const prompt = document.getElementById('promptInput').value.trim();
+            if (!prompt) {
+                alert('请输入任务描述');
+                return;
+            }
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('downloadBtn').disabled = true;
+            document.getElementById('thinkingBox').classList.remove('show');
+            document.getElementById('aiResponse').classList.remove('show');
+            document.getElementById('logContainer').innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'error') {
+                    updateStatus('error', result.message);
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                }
+            } catch (error) {
+                updateStatus('error', '启动失败: ' + error.message);
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+        
+        // 停止 Agent
+        async function stopAgent() {
+            try {
+                await fetch('/api/stop', { method: 'POST' });
+                updateStatus('idle', '已停止');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            } catch (error) {
+                console.error('停止失败:', error);
+            }
+        }
+        
+        // 重置文档
+        async function resetDocument() {
+            try {
+                const response = await fetch('/api/reset', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    addLog('🔄 重置', '文档已恢复原始状态');
+                    refreshPreview();
+                    document.getElementById('downloadBtn').disabled = true;
+                }
+            } catch (error) {
+                console.error('重置失败:', error);
+            }
+        }
+        
+        // 下载文档
+        function downloadDocument() {
+            window.location.href = '/api/download';
+        }
+        
+        // 刷新预览
+        async function refreshPreview() {
+            if (!isDocumentUploaded) return;
+            
+            const refreshBtn = document.querySelector('.refresh-btn');
+            refreshBtn.classList.add('spinning');
+            
+            try {
+                const response = await fetch('/api/preview');
+                
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    
+                    mammoth.convertToHtml({ arrayBuffer: arrayBuffer }, {
+                        styleMap: [
+                            "p[style-name='Heading 1'] => h1:fresh",
+                            "p[style-name='Heading 2'] => h2:fresh"
+                        ]
+                    }).then(result => {
+                        document.getElementById('previewContent').innerHTML = result.value;
+                    }).catch(err => {
+                        console.error('Mammoth 转换错误:', err);
+                        document.getElementById('previewContent').innerHTML = 
+                            '<div class="preview-placeholder"><div class="icon">⚠️</div><p>预览生成失败</p></div>';
+                    });
+                }
+            } catch (error) {
+                console.error('预览刷新失败:', error);
+            } finally {
+                refreshBtn.classList.remove('spinning');
+            }
+        }
+        
+        // 更新状态栏
+        function updateStatus(status, message) {
+            const statusBar = document.getElementById('statusBar');
+            const statusText = document.getElementById('statusText');
+            
+            statusBar.className = 'status-bar ' + status;
+            statusText.textContent = message;
+            
+            const icons = {
+                idle: '⏳',
+                running: '⚡',
+                completed: '✅',
+                error: '❌'
+            };
+            
+            statusBar.querySelector('span').textContent = icons[status] || '⏳';
+        }
+        
+        // 添加日志
+        function addLog(action, detail) {
+            const logContainer = document.getElementById('logContainer');
+            const time = new Date().toLocaleTimeString();
+            
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="log-time">${time}</span>
+                <span class="log-action">${action}</span>
+                <span class="log-detail">${detail || ''}</span>
+            `;
+            
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 设置默认提示
+            document.getElementById('promptInput').value = 
+                '填写简历表格。信息如下：\n姓名：张三\n学校：华东师范大学\n专业：计算机科学与技术\n学历：硕士\n毕业时间：2026年\n电话：13812345678\n邮箱：zhangsan@example.com\n\n其他信息请合理编造。';
+        });
+    </script>
+</body>
+</html>

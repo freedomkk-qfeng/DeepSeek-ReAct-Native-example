@@ -23,3 +23,10 @@ venv.bak/
 # System
 .DS_Store
 Thumbs.db
+
+# Temp files
+temp_*.docx
+test_output_*.docx
+uploads/
+*.docx
+!工作简历空表.docx
